@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "audit": "pnpm audit --prod --registry=https://registry.npmjs.org",
     "prepare": "husky"
   },
   "lint-staged": {

@@ -31,6 +31,7 @@ A single-page, browser-based 3D globe visualization (`mesh-globe`) where users a
 ## Implementation Decisions
 
 ### Architectural Topology & Modules
+
 - **Frontend Presentation Layer**: Built with Svelte 5 utilizing Runes for fine-grained reactivity. The presentation layer hosts the full-screen 3D canvas alongside an accessible HUD overlay for peer statistics, room status, and versioning.
 - **Globe Visualization Engine**: Built on `globe.gl` (Three.js WebGL). Manages points, ripple rings for active nodes, and bezier arc curves connecting the local client to remote peers. Arcs dynamically update color and particle speed based on measured RTT.
 - **Signaling & Mesh Transport**: Implemented using Trystero's Nostr backend (`trystero/nostr`). Rooms are isolated by room IDs derived from the window location hash (falling back to `global`). Handles WebRTC offer/answer handshakes and ICE candidate exchange via public Nostr relays.
@@ -56,10 +57,12 @@ A single-page, browser-based 3D globe visualization (`mesh-globe`) where users a
 ## Testing Decisions
 
 ### Testing Philosophy
+
 - Tests must verify observable behavior and system contracts rather than private internal implementation details.
 - High-level seams are preferred: state management, message serialization/deserialization, latency calculation, and room URL hash parsing.
 
 ### Seams to Test
+
 - **Latency & EMA Smoothing Calculator**: Unit tests validating RTT computation, clock skew tolerance, and exponential moving average stability under packet bursts.
 - **Protocol Message Serialization**: Schema and payload validation ensuring ping, pong, and coordinate metadata messages handle corrupt or malformed payloads gracefully without crashing the mesh state.
 - **Room Hash Router**: Tests verifying that URL hash changes properly re-initialize the Trystero room context and disconnect prior peers.

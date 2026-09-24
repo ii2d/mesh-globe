@@ -1,10 +1,20 @@
 import { joinRoom, type Room } from 'trystero/nostr';
-import { parsePeerMetadata, serializePeerMetadata, type PeerMetadata } from './protocol';
+import {
+  parsePeerMetadata,
+  serializePeerMetadata,
+  type PeerMetadata,
+  type PingMessage,
+  type PongMessage,
+} from './protocol';
 import type { GeoLocation } from './geo';
+import { calculateRtt, updateEma } from './latency';
 
 export interface RemotePeer {
   id: string;
   metadata?: PeerMetadata;
+  rtt?: number;
+  emaRtt?: number;
+  lastPingTime?: number;
   joinedAt: number;
 }
 
@@ -35,6 +45,10 @@ export function createMeshRoom(
   );
 
   const metaAction = room.makeAction('meta');
+  const pingAction = room.makeAction('ping');
+  const pongAction = room.makeAction('pong');
+
+  let pingIntervalId: ReturnType<typeof setInterval> | null = null;
 
   function notifyChange() {
     const peerList = Array.from(peers.values());
@@ -105,6 +119,53 @@ export function createMeshRoom(
     }
   };
 
+  // Handle ping: reply with pong containing the original timestamp
+  pingAction.onMessage = (data: unknown, context: { peerId: string }) => {
+    if (!data || typeof data !== 'object') return;
+    const msg = data as Partial<PingMessage>;
+    if (msg.type === 'ping' && typeof msg.t === 'number' && typeof msg.id === 'string') {
+      const pong: PongMessage = {
+        type: 'pong',
+        id: msg.id,
+        t: msg.t,
+      };
+      pongAction.send(pong as never, { target: context.peerId }).catch(() => {});
+    }
+  };
+
+  // Handle pong: compute round-trip latency and apply EMA smoothing
+  pongAction.onMessage = (data: unknown, context: { peerId: string }) => {
+    if (!data || typeof data !== 'object') return;
+    const msg = data as Partial<PongMessage>;
+    if (msg.type === 'pong' && typeof msg.t === 'number') {
+      const peer = peers.get(context.peerId);
+      if (peer) {
+        const now = performance.now();
+        const rtt = calculateRtt(msg.t, now);
+        peer.rtt = rtt;
+        peer.emaRtt = updateEma(peer.emaRtt, rtt);
+        options.onPeerUpdate?.(peer);
+        notifyChange();
+      }
+    }
+  };
+
+  // Dispatch ping packets every 2.5 seconds to all connected peers
+  pingIntervalId = setInterval(() => {
+    if (peers.size === 0) return;
+
+    const now = performance.now();
+    for (const [peerId, peer] of peers) {
+      peer.lastPingTime = now;
+      const ping: PingMessage = {
+        type: 'ping',
+        id: `${peerId}-${Math.random().toString(36).slice(2, 8)}`,
+        t: now,
+      };
+      pingAction.send(ping as never, { target: peerId }).catch(() => {});
+    }
+  }, 2500);
+
   // If local location is already known, broadcast initially
   if (localLocation) {
     sendLocalMetadata();
@@ -118,6 +179,10 @@ export function createMeshRoom(
       sendLocalMetadata();
     },
     leave: () => {
+      if (pingIntervalId) {
+        clearInterval(pingIntervalId);
+        pingIntervalId = null;
+      }
       peers.clear();
       notifyChange();
       try {

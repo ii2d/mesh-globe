@@ -3,6 +3,7 @@
   import Globe, { type GlobeInstance } from 'globe.gl';
   import type { GeoLocation } from './geo';
   import type { RemotePeer } from './mesh';
+  import { getLatencyColor, getLatencyTier } from './latency';
 
   interface Props {
     location?: GeoLocation | null;
@@ -35,11 +36,27 @@
     color: (t: number) => string;
   }
 
+  interface GlobeArc {
+    id: string;
+    startLat: number;
+    startLng: number;
+    endLat: number;
+    endLng: number;
+    color: [string, string];
+    altitude: number;
+    stroke: number;
+    dashLength: number;
+    dashGap: number;
+    animateTime: number;
+    label: string;
+  }
+
   function updateGlobeData() {
     if (!globeInstance) return;
 
     const points: GlobePoint[] = [];
     const rings: GlobeRing[] = [];
+    const arcs: GlobeArc[] = [];
 
     // Local user node
     if (location) {
@@ -71,21 +88,26 @@
       });
     }
 
-    // Remote peer nodes
+    // Remote peer nodes and arcs
     for (const peer of peers) {
       if (peer.metadata) {
         const pCity = peer.metadata.city ? `${peer.metadata.city}, ` : '';
         const pCountry = peer.metadata.country || 'Remote Peer';
+        const rttVal = peer.emaRtt ?? peer.rtt;
+        const latencyColor = rttVal !== undefined ? getLatencyColor(rttVal) : '#a855f7';
+        const latencyTier = rttVal !== undefined ? getLatencyTier(rttVal) : 'unknown';
+        const rttText = rttVal !== undefined ? `${Math.round(rttVal)} ms` : 'Measuring...';
 
         points.push({
           id: peer.id,
           lat: peer.metadata.lat,
           lng: peer.metadata.lng,
           size: 0.5,
-          color: '#a855f7',
+          color: latencyColor,
           label: `<div class="globe-tooltip">
             <div class="tooltip-title">Peer [${peer.id.slice(0, 8)}]</div>
             <div class="tooltip-body">${pCity}${pCountry}</div>
+            <div class="tooltip-latency" style="color: ${latencyColor}">RTT: ${rttText} (${latencyTier})</div>
             <div class="tooltip-coords">${peer.metadata.lat.toFixed(2)}°, ${peer.metadata.lng.toFixed(2)}°</div>
           </div>`,
           isLocal: false,
@@ -97,18 +119,52 @@
           maxR: 3.2,
           propagationSpeed: 1.2,
           repeatPeriod: 2200,
-          color: (t: number) => `rgba(168, 85, 247, ${Math.sqrt(1 - t) * 0.7})`,
+          color: (t: number) => {
+            const rgb =
+              latencyColor === '#22c55e'
+                ? '34, 197, 94'
+                : latencyColor === '#ef4444'
+                  ? '239, 68, 68'
+                  : latencyColor === '#eab308'
+                    ? '234, 179, 8'
+                    : '168, 85, 247';
+            return `rgba(${rgb}, ${Math.sqrt(1 - t) * 0.7})`;
+          },
         });
+
+        // 3D connection arc between local node and peer
+        if (location) {
+          const animateTime =
+            rttVal !== undefined ? Math.max(1200, Math.min(4200, Math.round(rttVal * 12))) : 2500;
+
+          arcs.push({
+            id: `arc-${peer.id}`,
+            startLat: location.lat,
+            startLng: location.lng,
+            endLat: peer.metadata.lat,
+            endLng: peer.metadata.lng,
+            color: ['#38bdf8', latencyColor],
+            altitude: 0.22,
+            stroke: 0.9,
+            dashLength: 0.38,
+            dashGap: 0.18,
+            animateTime,
+            label: `<div class="globe-tooltip">
+              <div class="tooltip-title">Mesh Connection</div>
+              <div class="tooltip-body">To: ${peer.id.slice(0, 8)}</div>
+              <div class="tooltip-latency" style="color: ${latencyColor}">Latency: ${rttText}</div>
+            </div>`,
+          });
+        }
       }
     }
 
-    globeInstance.pointsData(points).ringsData(rings);
+    globeInstance.pointsData(points).ringsData(rings).arcsData(arcs);
   }
 
   $effect(() => {
-    // Reactively update points and rings when location or peers change
+    // Reactively update when location or peers change
     if (globeInstance) {
-      // Access reactive props
       void location;
       void peers;
       updateGlobeData();
@@ -141,18 +197,32 @@
       .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
       .atmosphereColor('#38bdf8')
       .atmosphereAltitude(0.18)
+      // Points
       .pointLat('lat')
       .pointLng('lng')
       .pointColor('color')
       .pointRadius('size')
       .pointAltitude(0.015)
       .pointLabel('label')
+      // Rings
       .ringLat('lat')
       .ringLng('lng')
       .ringColor((d: unknown) => (d as GlobeRing).color)
       .ringMaxRadius('maxR')
       .ringPropagationSpeed('propagationSpeed')
-      .ringRepeatPeriod('repeatPeriod');
+      .ringRepeatPeriod('repeatPeriod')
+      // Arcs
+      .arcStartLat('startLat')
+      .arcStartLng('startLng')
+      .arcEndLat('endLat')
+      .arcEndLng('endLng')
+      .arcColor('color')
+      .arcAltitude('altitude')
+      .arcStroke('stroke')
+      .arcDashLength('dashLength')
+      .arcDashGap('dashGap')
+      .arcDashAnimateTime('animateTime')
+      .arcLabel('label');
 
     const controls = globeInstance.controls();
     controls.autoRotate = autoRotate;
@@ -207,8 +277,8 @@
   }
 
   :global(.globe-tooltip) {
-    background: rgba(15, 23, 42, 0.9) !important;
-    backdrop-filter: blur(8px) !important;
+    background: rgba(15, 23, 42, 0.92) !important;
+    backdrop-filter: blur(10px) !important;
     border: 1px solid rgba(56, 189, 248, 0.3) !important;
     border-radius: 8px !important;
     padding: 0.5rem 0.75rem !important;
@@ -219,7 +289,7 @@
       BlinkMacSystemFont,
       sans-serif !important;
     font-size: 0.75rem !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
     pointer-events: none !important;
   }
 
@@ -231,6 +301,13 @@
 
   :global(.globe-tooltip .tooltip-body) {
     color: #e2e8f0;
+  }
+
+  :global(.globe-tooltip .tooltip-latency) {
+    font-weight: 600;
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    margin-top: 3px;
   }
 
   :global(.globe-tooltip .tooltip-coords) {

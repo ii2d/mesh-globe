@@ -1,15 +1,16 @@
 <script lang="ts">
   import type { RemotePeer } from './mesh';
+  import type { CapacityStatus } from './peer-store';
   import { getCountryFlagEmoji, formatLatencyBadge, summarizeMeshNetwork } from './telemetry';
 
   interface Props {
     roomName: string;
     peers: RemotePeer[];
+    capacity?: CapacityStatus;
     isCollapsed?: boolean;
-    onToggleCollapse?: () => void;
   }
 
-  let { roomName, peers = [], isCollapsed = $bindable(false) }: Props = $props();
+  let { roomName, peers = [], capacity, isCollapsed = $bindable(false) }: Props = $props();
 
   const summary = $derived(summarizeMeshNetwork(peers));
 
@@ -26,14 +27,21 @@
       <span class="hud-room">#{roomName}</span>
     </div>
 
-    <button
-      class="hud-toggle-btn"
-      onclick={toggleCollapse}
-      aria-label={isCollapsed ? 'Expand Telemetry HUD' : 'Collapse Telemetry HUD'}
-      title={isCollapsed ? 'Expand HUD' : 'Collapse HUD'}
-    >
-      <span class="toggle-icon">{isCollapsed ? '▲' : '▼'}</span>
-    </button>
+    <div class="header-right">
+      {#if capacity?.isFull}
+        <span class="cap-warning" title="25-peer soft cap reached. Further connections deferred."
+          >Cap Reached</span
+        >
+      {/if}
+      <button
+        class="hud-toggle-btn"
+        onclick={toggleCollapse}
+        aria-label={isCollapsed ? 'Expand Telemetry HUD' : 'Collapse Telemetry HUD'}
+        title={isCollapsed ? 'Expand HUD' : 'Collapse HUD'}
+      >
+        <span class="toggle-icon">{isCollapsed ? '▲' : '▼'}</span>
+      </button>
+    </div>
   </div>
 
   {#if !isCollapsed}
@@ -41,7 +49,12 @@
       <!-- Network Summary Stats -->
       <div class="summary-grid">
         <div class="stat-card">
-          <span class="stat-label">Active Peers</span>
+          <div class="stat-header">
+            <span class="stat-label">Active Peers</span>
+            {#if capacity}
+              <span class="stat-cap">/ {capacity.max} max</span>
+            {/if}
+          </div>
           <span class="stat-value">{summary.total}</span>
         </div>
         <div class="stat-card">
@@ -149,12 +162,30 @@
     background: rgba(255, 255, 255, 0.03);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     user-select: none;
+    gap: 0.5rem;
   }
 
   .header-left {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .cap-warning {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #eab308;
+    background: rgba(234, 179, 8, 0.15);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
   }
 
   .hud-status-dot {
@@ -223,11 +254,23 @@
     gap: 0.2rem;
   }
 
+  .stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
   .stat-label {
     font-size: 0.68rem;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+
+  .stat-cap {
+    font-size: 0.62rem;
+    color: #64748b;
+    font-family: var(--font-mono);
   }
 
   .stat-value {

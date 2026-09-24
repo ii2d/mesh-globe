@@ -8,6 +8,7 @@ import {
 } from './protocol';
 import type { GeoLocation } from './geo';
 import { calculateRtt, updateEma } from './latency';
+import { createPeerStore, type CapacityStatus, DEFAULT_MAX_PEERS } from './peer-store';
 
 export interface RemotePeer {
   id: string;
@@ -21,6 +22,7 @@ export interface RemotePeer {
 export interface MeshRoomHandler {
   roomId: string;
   getPeers: () => RemotePeer[];
+  getCapacityStatus: () => CapacityStatus;
   broadcastMetadata: (loc: GeoLocation) => void;
   leave: () => void;
 }
@@ -29,13 +31,14 @@ export function createMeshRoom(
   roomId: string,
   localLocation: GeoLocation | null,
   options: {
+    maxPeers?: number;
     onPeerJoin?: (peer: RemotePeer) => void;
     onPeerLeave?: (peerId: string) => void;
     onPeerUpdate?: (peer: RemotePeer) => void;
-    onPeersChange?: (peers: RemotePeer[]) => void;
+    onPeersChange?: (peers: RemotePeer[], capacity: CapacityStatus) => void;
   } = {},
 ): MeshRoomHandler {
-  const peers = new Map<string, RemotePeer>();
+  const peerStore = createPeerStore({ maxPeers: options.maxPeers ?? DEFAULT_MAX_PEERS });
 
   const room: Room = joinRoom(
     {
@@ -51,8 +54,9 @@ export function createMeshRoom(
   let pingIntervalId: ReturnType<typeof setInterval> | null = null;
 
   function notifyChange() {
-    const peerList = Array.from(peers.values());
-    options.onPeersChange?.(peerList);
+    const peerList = peerStore.getPeers();
+    const capacity = peerStore.getCapacityStatus();
+    options.onPeersChange?.(peerList, capacity);
   }
 
   function sendLocalMetadata(targetPeerId?: string) {
@@ -76,13 +80,20 @@ export function createMeshRoom(
     }
   }
 
-  // Handle incoming peer join
+  // Handle incoming peer join with capacity enforcement
   room.onPeerJoin = (peerId: string) => {
+    // If we have reached capacity, throttle/ignore new peer connection
+    if (!peerStore.canAcceptPeer()) {
+      return;
+    }
+
     const newPeer: RemotePeer = {
       id: peerId,
       joinedAt: Date.now(),
     };
-    peers.set(peerId, newPeer);
+    const added = peerStore.addPeer(newPeer);
+    if (!added) return;
+
     options.onPeerJoin?.(newPeer);
     notifyChange();
 
@@ -92,7 +103,7 @@ export function createMeshRoom(
 
   // Handle peer leave
   room.onPeerLeave = (peerId: string) => {
-    peers.delete(peerId);
+    peerStore.removePeer(peerId);
     options.onPeerLeave?.(peerId);
     notifyChange();
   };
@@ -102,20 +113,23 @@ export function createMeshRoom(
     const parsed = parsePeerMetadata(data);
     if (!parsed) return;
 
-    const existing = peers.get(context.peerId);
+    const existing = peerStore.getPeer(context.peerId);
     if (existing) {
       existing.metadata = parsed;
       options.onPeerUpdate?.(existing);
       notifyChange();
     } else {
+      if (!peerStore.canAcceptPeer()) return;
+
       const newPeer: RemotePeer = {
         id: context.peerId,
         metadata: parsed,
         joinedAt: Date.now(),
       };
-      peers.set(context.peerId, newPeer);
-      options.onPeerJoin?.(newPeer);
-      notifyChange();
+      if (peerStore.addPeer(newPeer)) {
+        options.onPeerJoin?.(newPeer);
+        notifyChange();
+      }
     }
   };
 
@@ -138,7 +152,7 @@ export function createMeshRoom(
     if (!data || typeof data !== 'object') return;
     const msg = data as Partial<PongMessage>;
     if (msg.type === 'pong' && typeof msg.t === 'number') {
-      const peer = peers.get(context.peerId);
+      const peer = peerStore.getPeer(context.peerId);
       if (peer) {
         const now = performance.now();
         const rtt = calculateRtt(msg.t, now);
@@ -150,46 +164,57 @@ export function createMeshRoom(
     }
   };
 
-  // Dispatch ping packets every 2.5 seconds to all connected peers
+  // Dispatch ping packets every 2.5 seconds to all active peers
   pingIntervalId = setInterval(() => {
-    if (peers.size === 0) return;
+    const activePeers = peerStore.getPeers();
+    if (activePeers.length === 0) return;
 
     const now = performance.now();
-    for (const [peerId, peer] of peers) {
+    for (const peer of activePeers) {
       peer.lastPingTime = now;
       const ping: PingMessage = {
         type: 'ping',
-        id: `${peerId}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `${peer.id}-${Math.random().toString(36).slice(2, 8)}`,
         t: now,
       };
-      pingAction.send(ping as never, { target: peerId }).catch(() => {});
+      pingAction.send(ping as never, { target: peer.id }).catch(() => {});
     }
   }, 2500);
+
+  // Tab unload listener for clean disconnection
+  const unloadHandler = () => {
+    cleanup();
+  };
+  window.addEventListener('beforeunload', unloadHandler);
 
   // If local location is already known, broadcast initially
   if (localLocation) {
     sendLocalMetadata();
   }
 
+  function cleanup() {
+    window.removeEventListener('beforeunload', unloadHandler);
+    if (pingIntervalId) {
+      clearInterval(pingIntervalId);
+      pingIntervalId = null;
+    }
+    peerStore.clear();
+    notifyChange();
+    try {
+      room.leave().catch(() => {});
+    } catch {
+      // Safe cleanup
+    }
+  }
+
   return {
     roomId,
-    getPeers: () => Array.from(peers.values()),
+    getPeers: () => peerStore.getPeers(),
+    getCapacityStatus: () => peerStore.getCapacityStatus(),
     broadcastMetadata: (loc: GeoLocation) => {
       localLocation = loc;
       sendLocalMetadata();
     },
-    leave: () => {
-      if (pingIntervalId) {
-        clearInterval(pingIntervalId);
-        pingIntervalId = null;
-      }
-      peers.clear();
-      notifyChange();
-      try {
-        room.leave().catch(() => {});
-      } catch {
-        // Safe room cleanup
-      }
-    },
+    leave: cleanup,
   };
 }

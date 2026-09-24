@@ -6,6 +6,7 @@
   import { resolveUserLocation, type GeoLocation } from './lib/geo';
   import { setupHashRouter, parseRoomFromHash } from './lib/router';
   import { createMeshRoom, type MeshRoomHandler, type RemotePeer } from './lib/mesh';
+  import type { CapacityStatus } from './lib/peer-store';
 
   let location = $state<GeoLocation | null>(null);
   let isLoadingLocation = $state(true);
@@ -13,6 +14,7 @@
   let isHudCollapsed = $state(false);
   let currentRoom = $state<string>('global');
   let peers = $state<RemotePeer[]>([]);
+  let capacity = $state<CapacityStatus | undefined>(undefined);
 
   let meshHandler: MeshRoomHandler | null = null;
   let routerDestroy: (() => void) | null = null;
@@ -23,12 +25,15 @@
       meshHandler = null;
     }
     peers = [];
+    capacity = undefined;
 
     meshHandler = createMeshRoom(roomId, location, {
-      onPeersChange: (updatedPeers) => {
+      onPeersChange: (updatedPeers, updatedCapacity) => {
         peers = [...updatedPeers];
+        capacity = updatedCapacity;
       },
     });
+    capacity = meshHandler.getCapacityStatus();
   }
 
   onMount(async () => {
@@ -136,7 +141,7 @@
 
   <main class="canvas-viewport" id="globe-container">
     <Globe {location} {peers} bind:autoRotate />
-    <NetworkHud roomName={currentRoom} {peers} bind:isCollapsed={isHudCollapsed} />
+    <NetworkHud roomName={currentRoom} {peers} {capacity} bind:isCollapsed={isHudCollapsed} />
   </main>
 
   <Footer />

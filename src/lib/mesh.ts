@@ -27,6 +27,14 @@ export interface MeshRoomHandler {
   leave: () => void;
 }
 
+export function isWebCryptoSupported(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.crypto !== 'undefined' &&
+    typeof window.crypto.subtle !== 'undefined'
+  );
+}
+
 export function createMeshRoom(
   roomId: string,
   localLocation: GeoLocation | null,
@@ -36,9 +44,28 @@ export function createMeshRoom(
     onPeerLeave?: (peerId: string) => void;
     onPeerUpdate?: (peer: RemotePeer) => void;
     onPeersChange?: (peers: RemotePeer[], capacity: CapacityStatus) => void;
+    onError?: (err: Error) => void;
   } = {},
 ): MeshRoomHandler {
   const peerStore = createPeerStore({ maxPeers: options.maxPeers ?? DEFAULT_MAX_PEERS });
+
+  if (!isWebCryptoSupported()) {
+    console.warn(
+      '[mesh-globe] WebCrypto subtle is unavailable. Browsers require a Secure Context (HTTPS or localhost) for WebRTC mesh signaling.',
+    );
+    options.onError?.(
+      new Error(
+        'Insecure context: WebCrypto subtle is unavailable. Access via http://localhost:5173 or HTTPS to enable P2P mesh.',
+      ),
+    );
+    return {
+      roomId,
+      getPeers: () => [],
+      getCapacityStatus: () => peerStore.getCapacityStatus(),
+      broadcastMetadata: () => {},
+      leave: () => {},
+    };
+  }
 
   const room: Room = joinRoom(
     {

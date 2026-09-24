@@ -15,6 +15,7 @@
   let currentRoom = $state<string>('global');
   let peers = $state<RemotePeer[]>([]);
   let capacity = $state<CapacityStatus | undefined>(undefined);
+  let insecureWarning = $state<string | null>(null);
 
   let meshHandler: MeshRoomHandler | null = null;
   let routerDestroy: (() => void) | null = null;
@@ -31,6 +32,9 @@
       onPeersChange: (updatedPeers, updatedCapacity) => {
         peers = [...updatedPeers];
         capacity = updatedCapacity;
+      },
+      onError: (err) => {
+        insecureWarning = err.message;
       },
     });
     capacity = meshHandler.getCapacityStatus();
@@ -138,6 +142,23 @@
       </button>
     </div>
   </header>
+
+  {#if insecureWarning}
+    <div class="insecure-banner" role="alert">
+      <span class="warning-icon">⚠️</span>
+      <span class="warning-text">
+        <strong>Insecure Origin:</strong> WebCrypto is disabled by your browser over non-localhost
+        HTTP. Access via <code>localhost:5173</code> or <code>HTTPS</code> for P2P mesh connectivity.
+      </span>
+      <button
+        class="dismiss-btn"
+        onclick={() => (insecureWarning = null)}
+        aria-label="Dismiss warning"
+      >
+        ✕
+      </button>
+    </div>
+  {/if}
 
   <main class="canvas-viewport" id="globe-container">
     <Globe {location} {peers} bind:autoRotate />
@@ -331,5 +352,47 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+  }
+
+  .insecure-banner {
+    position: absolute;
+    top: 4.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 1rem;
+    background: rgba(234, 179, 8, 0.15);
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    backdrop-filter: blur(12px);
+    border-radius: 8px;
+    color: #fef08a;
+    font-size: 0.78rem;
+    z-index: 50;
+    max-width: 90vw;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .insecure-banner code {
+    font-family: var(--font-mono);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    color: #fff;
+  }
+
+  .dismiss-btn {
+    background: none;
+    border: none;
+    color: #fef08a;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0 0.2rem;
+    opacity: 0.7;
+  }
+
+  .dismiss-btn:hover {
+    opacity: 1;
   }
 </style>

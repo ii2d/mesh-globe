@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import Globe from './lib/Globe.svelte';
+  import NetworkHud from './lib/NetworkHud.svelte';
   import Footer from './lib/Footer.svelte';
   import { resolveUserLocation, type GeoLocation } from './lib/geo';
   import { setupHashRouter, parseRoomFromHash } from './lib/router';
@@ -9,6 +10,7 @@
   let location = $state<GeoLocation | null>(null);
   let isLoadingLocation = $state(true);
   let autoRotate = $state(true);
+  let isHudCollapsed = $state(false);
   let currentRoom = $state<string>('global');
   let peers = $state<RemotePeer[]>([]);
 
@@ -70,6 +72,10 @@
   function toggleAutoRotate() {
     autoRotate = !autoRotate;
   }
+
+  function toggleHud() {
+    isHudCollapsed = !isHudCollapsed;
+  }
 </script>
 
 <div class="shell">
@@ -104,10 +110,16 @@
         <span class="room-name">{currentRoom}</span>
       </div>
 
-      <div class="peers-pill" title="Active WebRTC peers in this room">
-        <span class="peers-icon">●</span>
-        <span class="peers-count">{peers.length} {peers.length === 1 ? 'peer' : 'peers'}</span>
-      </div>
+      <button
+        class="control-btn"
+        class:active={!isHudCollapsed}
+        onclick={toggleHud}
+        title="Toggle Network HUD"
+        aria-label="Toggle Network HUD"
+      >
+        <span class="btn-icon">📊</span>
+        <span class="btn-text">HUD</span>
+      </button>
 
       <button
         class="control-btn"
@@ -124,6 +136,7 @@
 
   <main class="canvas-viewport" id="globe-container">
     <Globe {location} {peers} bind:autoRotate />
+    <NetworkHud roomName={currentRoom} {peers} bind:isCollapsed={isHudCollapsed} />
   </main>
 
   <Footer />
@@ -275,24 +288,6 @@
     color: #e2e8f0;
   }
 
-  .peers-pill {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.75rem;
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    color: #cbd5e1;
-  }
-
-  .peers-icon {
-    color: #a855f7;
-    font-size: 0.7rem;
-  }
-
   .control-btn {
     display: flex;
     align-items: center;
@@ -321,7 +316,7 @@
   }
 
   .btn-icon {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     line-height: 1;
   }
 

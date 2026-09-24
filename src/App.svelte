@@ -1,19 +1,69 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Globe from './lib/Globe.svelte';
   import Footer from './lib/Footer.svelte';
   import { resolveUserLocation, type GeoLocation } from './lib/geo';
+  import { setupHashRouter, parseRoomFromHash } from './lib/router';
+  import { createMeshRoom, type MeshRoomHandler, type RemotePeer } from './lib/mesh';
 
   let location = $state<GeoLocation | null>(null);
   let isLoadingLocation = $state(true);
   let autoRotate = $state(true);
-  const roomName = $state('global');
+  let currentRoom = $state<string>('global');
+  let peers = $state<RemotePeer[]>([]);
+
+  let meshHandler: MeshRoomHandler | null = null;
+  let routerDestroy: (() => void) | null = null;
+
+  function joinCurrentRoom(roomId: string) {
+    if (meshHandler) {
+      meshHandler.leave();
+      meshHandler = null;
+    }
+    peers = [];
+
+    meshHandler = createMeshRoom(roomId, location, {
+      onPeersChange: (updatedPeers) => {
+        peers = [...updatedPeers];
+      },
+    });
+  }
 
   onMount(async () => {
+    // 1. Initial room from URL hash
+    currentRoom = parseRoomFromHash(window.location.hash);
+
+    // 2. Setup dynamic hash router listener
+    const router = setupHashRouter((newRoom) => {
+      if (newRoom !== currentRoom) {
+        currentRoom = newRoom;
+        joinCurrentRoom(currentRoom);
+      }
+    });
+    routerDestroy = router.destroy;
+
+    // 3. Connect to initial mesh room
+    joinCurrentRoom(currentRoom);
+
+    // 4. Resolve client geolocation
     try {
       location = await resolveUserLocation();
+      if (meshHandler && location) {
+        meshHandler.broadcastMetadata(location);
+      }
     } finally {
       isLoadingLocation = false;
+    }
+  });
+
+  onDestroy(() => {
+    if (routerDestroy) {
+      routerDestroy();
+      routerDestroy = null;
+    }
+    if (meshHandler) {
+      meshHandler.leave();
+      meshHandler = null;
     }
   });
 
@@ -49,9 +99,14 @@
         </div>
       {/if}
 
-      <div class="room-pill">
+      <div class="room-pill" title="Current mesh room derived from URL hash">
         <span class="room-prefix">#</span>
-        <span class="room-name">{roomName}</span>
+        <span class="room-name">{currentRoom}</span>
+      </div>
+
+      <div class="peers-pill" title="Active WebRTC peers in this room">
+        <span class="peers-icon">●</span>
+        <span class="peers-count">{peers.length} {peers.length === 1 ? 'peer' : 'peers'}</span>
       </div>
 
       <button
@@ -68,7 +123,7 @@
   </header>
 
   <main class="canvas-viewport" id="globe-container">
-    <Globe {location} bind:autoRotate />
+    <Globe {location} {peers} bind:autoRotate />
   </main>
 
   <Footer />
@@ -218,6 +273,24 @@
 
   .room-name {
     color: #e2e8f0;
+  }
+
+  .peers-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    color: #cbd5e1;
+  }
+
+  .peers-icon {
+    color: #a855f7;
+    font-size: 0.7rem;
   }
 
   .control-btn {

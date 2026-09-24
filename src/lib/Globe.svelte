@@ -2,13 +2,15 @@
   import { onMount, onDestroy } from 'svelte';
   import Globe, { type GlobeInstance } from 'globe.gl';
   import type { GeoLocation } from './geo';
+  import type { RemotePeer } from './mesh';
 
   interface Props {
     location?: GeoLocation | null;
+    peers?: RemotePeer[];
     autoRotate?: boolean;
   }
 
-  let { location = null, autoRotate = $bindable(true) }: Props = $props();
+  let { location = null, peers = [], autoRotate = $bindable(true) }: Props = $props();
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let globeInstance: GlobeInstance | null = null;
@@ -39,6 +41,7 @@
     const points: GlobePoint[] = [];
     const rings: GlobeRing[] = [];
 
+    // Local user node
     if (location) {
       const cityText = location.city ? `${location.city}, ` : '';
       const countryText = location.country || 'Local Node';
@@ -68,14 +71,47 @@
       });
     }
 
+    // Remote peer nodes
+    for (const peer of peers) {
+      if (peer.metadata) {
+        const pCity = peer.metadata.city ? `${peer.metadata.city}, ` : '';
+        const pCountry = peer.metadata.country || 'Remote Peer';
+
+        points.push({
+          id: peer.id,
+          lat: peer.metadata.lat,
+          lng: peer.metadata.lng,
+          size: 0.5,
+          color: '#a855f7',
+          label: `<div class="globe-tooltip">
+            <div class="tooltip-title">Peer [${peer.id.slice(0, 8)}]</div>
+            <div class="tooltip-body">${pCity}${pCountry}</div>
+            <div class="tooltip-coords">${peer.metadata.lat.toFixed(2)}°, ${peer.metadata.lng.toFixed(2)}°</div>
+          </div>`,
+          isLocal: false,
+        });
+
+        rings.push({
+          lat: peer.metadata.lat,
+          lng: peer.metadata.lng,
+          maxR: 3.2,
+          propagationSpeed: 1.2,
+          repeatPeriod: 2200,
+          color: (t: number) => `rgba(168, 85, 247, ${Math.sqrt(1 - t) * 0.7})`,
+        });
+      }
+    }
+
     globeInstance.pointsData(points).ringsData(rings);
   }
 
   $effect(() => {
-    // Reactively update points and rings when location changes
-    if (location && globeInstance) {
+    // Reactively update points and rings when location or peers change
+    if (globeInstance) {
+      // Access reactive props
+      void location;
+      void peers;
       updateGlobeData();
-      globeInstance.pointOfView({ lat: location.lat, lng: location.lng, altitude: 2.2 }, 1500);
     }
   });
 
@@ -124,8 +160,9 @@
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
 
+    updateGlobeData();
+
     if (location) {
-      updateGlobeData();
       globeInstance.pointOfView({ lat: location.lat, lng: location.lng, altitude: 2.2 }, 1200);
     } else {
       globeInstance.pointOfView({ lat: 20, lng: 0, altitude: 2.5 }, 1000);

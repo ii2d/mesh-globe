@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "globe.gl": "^2.46.2",
-    "three": "^0.186.0"
+    "three": "^0.186.0",
+    "trystero": "^0.25.4"
   }
 }

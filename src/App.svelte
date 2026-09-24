@@ -1,7 +1,25 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import Globe from './lib/Globe.svelte';
   import Footer from './lib/Footer.svelte';
+  import { resolveUserLocation, type GeoLocation } from './lib/geo';
 
+  let location = $state<GeoLocation | null>(null);
+  let isLoadingLocation = $state(true);
+  let autoRotate = $state(true);
   const roomName = $state('global');
+
+  onMount(async () => {
+    try {
+      location = await resolveUserLocation();
+    } finally {
+      isLoadingLocation = false;
+    }
+  });
+
+  function toggleAutoRotate() {
+    autoRotate = !autoRotate;
+  }
 </script>
 
 <div class="shell">
@@ -17,19 +35,40 @@
     </div>
 
     <div class="header-controls">
+      {#if location}
+        <div class="location-badge" title="Coarsened city-level coordinates with privacy jitter">
+          <span class="location-dot"></span>
+          <span class="location-text">
+            {location.city ? `${location.city}, ` : ''}{location.country || 'Local Node'}
+          </span>
+        </div>
+      {:else if isLoadingLocation}
+        <div class="location-badge loading">
+          <span class="loading-spinner"></span>
+          <span class="location-text">Locating...</span>
+        </div>
+      {/if}
+
       <div class="room-pill">
         <span class="room-prefix">#</span>
         <span class="room-name">{roomName}</span>
       </div>
+
+      <button
+        class="control-btn"
+        class:active={autoRotate}
+        onclick={toggleAutoRotate}
+        title="Toggle Globe Auto-Rotation"
+        aria-label="Toggle Globe Auto-Rotation"
+      >
+        <span class="btn-icon">↻</span>
+        <span class="btn-text">Rotate</span>
+      </button>
     </div>
   </header>
 
   <main class="canvas-viewport" id="globe-container">
-    <div class="viewport-placeholder">
-      <div class="grid-backdrop"></div>
-      <p class="placeholder-caption">3D Globe Visualization Engine</p>
-      <span class="placeholder-sub">Ready for Ticket #2 Integration</span>
-    </div>
+    <Globe {location} bind:autoRotate />
   </main>
 
   <Footer />
@@ -117,11 +156,53 @@
     letter-spacing: 0.05em;
   }
 
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .location-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    color: #e2e8f0;
+  }
+
+  .location-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #38bdf8;
+    box-shadow: 0 0 6px #38bdf8;
+  }
+
+  .loading-spinner {
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .room-pill {
     display: flex;
     align-items: center;
     padding: 0.35rem 0.75rem;
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(15, 23, 42, 0.75);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 9999px;
@@ -139,41 +220,43 @@
     color: #e2e8f0;
   }
 
+  .control-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .control-btn:hover {
+    color: #f8fafc;
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .control-btn.active {
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(56, 189, 248, 0.1);
+  }
+
+  .btn-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
   .canvas-viewport {
     flex: 1;
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
-  }
-
-  .viewport-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    z-index: 10;
-  }
-
-  .grid-backdrop {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-  }
-
-  .placeholder-caption {
-    font-size: 1rem;
-    font-weight: 500;
-    color: #cbd5e1;
-  }
-
-  .placeholder-sub {
-    font-size: 0.8rem;
-    color: #64748b;
   }
 </style>

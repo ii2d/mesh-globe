@@ -1,6 +1,12 @@
 <script lang="ts">
   import { getAppVersion } from './version';
 
+  interface Props {
+    onOpenPrivacy?: () => void;
+  }
+
+  let { onOpenPrivacy }: Props = $props();
+
   const version = getAppVersion();
 </script>
 
@@ -8,6 +14,14 @@
   <div class="footer-left">
     <span class="status-indicator"></span>
     <span class="status-text">Mesh Ready</span>
+    <span class="divider">•</span>
+    <button
+      class="footer-privacy-btn"
+      onclick={onOpenPrivacy}
+      title="View P2P Privacy & Security details"
+    >
+      🛡️ Privacy & Security
+    </button>
   </div>
   <div class="footer-center">
     <a href="https://github.com/ii2d/mesh-globe" target="_blank" rel="noreferrer" class="repo-link">
@@ -40,6 +54,30 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .divider {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 0.65rem;
+  }
+
+  .footer-privacy-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .footer-privacy-btn:hover {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
   }
 
   .status-indicator {

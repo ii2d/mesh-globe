@@ -3,15 +3,23 @@
   import Globe from './lib/Globe.svelte';
   import NetworkHud from './lib/NetworkHud.svelte';
   import Footer from './lib/Footer.svelte';
+  import RoomModal from './lib/RoomModal.svelte';
+  import PrivacyModal from './lib/PrivacyModal.svelte';
   import { resolveUserLocation, type GeoLocation } from './lib/geo';
   import { setupHashRouter, parseRoomFromHash } from './lib/router';
   import { createMeshRoom, type MeshRoomHandler, type RemotePeer } from './lib/mesh';
   import type { CapacityStatus } from './lib/peer-store';
 
   let location = $state<GeoLocation | null>(null);
+  let realLocation = $state<GeoLocation | null>(null);
+  let isGhostMode = $state(false);
   let isLoadingLocation = $state(true);
   let autoRotate = $state(true);
   let isHudCollapsed = $state(false);
+  let isRoomModalOpen = $state(false);
+  let isPrivacyModalOpen = $state(false);
+  let isCopiedLink = $state(false);
+  let copyTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let currentRoom = $state<string>('global');
   let peers = $state<RemotePeer[]>([]);
   let capacity = $state<CapacityStatus | undefined>(undefined);
@@ -19,10 +27,89 @@
 
   let meshHandler: MeshRoomHandler | null = null;
   let routerDestroy: (() => void) | null = null;
-  let globeComponent = $state<{ focusOnUser: () => void } | null>(null);
+  let globeComponent = $state<{
+    focusOnUser: () => void;
+    focusOnCoordinates: (lat: number, lng: number) => void;
+  } | null>(null);
 
   function focusLocalNode() {
     globeComponent?.focusOnUser();
+  }
+
+  function copyRoomLink() {
+    const inviteUrl = `${window.location.origin}${window.location.pathname}#${currentRoom}`;
+    const handleSuccess = () => {
+      isCopiedLink = true;
+      if (copyTimeoutId) clearTimeout(copyTimeoutId);
+      copyTimeoutId = setTimeout(() => {
+        isCopiedLink = false;
+      }, 2000);
+    };
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(inviteUrl)
+        .then(handleSuccess)
+        .catch(() => {
+          fallbackCopy(inviteUrl);
+          handleSuccess();
+        });
+    } else {
+      fallbackCopy(inviteUrl);
+      handleSuccess();
+    }
+  }
+
+  function fallbackCopy(text: string) {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    } catch {
+      // Ignore
+    }
+  }
+
+  function handleFocusPeer(peer: RemotePeer) {
+    if (peer.metadata) {
+      globeComponent?.focusOnCoordinates(peer.metadata.lat, peer.metadata.lng);
+    }
+  }
+
+  function handleSelectRoom(newRoom: string) {
+    if (newRoom && newRoom !== currentRoom) {
+      window.location.hash = `#${newRoom}`;
+      currentRoom = newRoom;
+      joinCurrentRoom(currentRoom);
+    }
+  }
+
+  function toggleGhostMode() {
+    isGhostMode = !isGhostMode;
+    if (isGhostMode) {
+      const randomLat = Number((Math.random() * 120 - 60).toFixed(2));
+      const randomLng = Number((Math.random() * 360 - 180).toFixed(2));
+      location = {
+        lat: randomLat,
+        lng: randomLng,
+        city: 'Anonymous',
+        country: 'Incognito Ghost',
+        countryCode: 'XX',
+        isFallback: true,
+      };
+    } else {
+      location = realLocation;
+    }
+
+    if (meshHandler && location) {
+      meshHandler.broadcastMetadata(location);
+    }
   }
 
   function joinCurrentRoom(roomId: string) {
@@ -63,9 +150,13 @@
 
     // 4. Resolve client geolocation
     try {
-      location = await resolveUserLocation();
-      if (meshHandler && location) {
-        meshHandler.broadcastMetadata(location);
+      const resolved = await resolveUserLocation();
+      realLocation = resolved;
+      if (!isGhostMode) {
+        location = resolved;
+        if (meshHandler && location) {
+          meshHandler.broadcastMetadata(location);
+        }
       }
     } finally {
       isLoadingLocation = false;
@@ -73,6 +164,10 @@
   });
 
   onDestroy(() => {
+    if (copyTimeoutId) {
+      clearTimeout(copyTimeoutId);
+      copyTimeoutId = null;
+    }
     if (routerDestroy) {
       routerDestroy();
       routerDestroy = null;
@@ -109,11 +204,14 @@
         <button
           type="button"
           class="location-badge clickable"
+          class:ghost={isGhostMode}
           onclick={focusLocalNode}
-          title="Click to focus on your node on the globe"
+          title={isGhostMode
+            ? 'Ghost Mode Active: Masked coordinates broadcasted'
+            : 'Click to focus on your node on the globe'}
         >
-          <span class="you-indicator">YOU</span>
-          <span class="location-dot"></span>
+          <span class="you-indicator">{isGhostMode ? '👻 GHOST' : 'YOU'}</span>
+          <span class="location-dot" class:ghost-dot={isGhostMode}></span>
           <span class="location-text">
             {location.city ? `${location.city}, ` : ''}{location.country || 'Local Node'}
             <span class="location-coords"
@@ -128,10 +226,27 @@
         </div>
       {/if}
 
-      <div class="room-pill" title="Current mesh room derived from URL hash">
+      <button
+        class="room-pill clickable"
+        onclick={() => (isRoomModalOpen = true)}
+        title="Current mesh room #{currentRoom}. Click to switch or create room"
+        aria-label="Manage mesh room #{currentRoom}"
+      >
         <span class="room-prefix">#</span>
         <span class="room-name">{currentRoom}</span>
-      </div>
+        <span class="room-edit-pill">✏️</span>
+      </button>
+
+      <button
+        class="control-btn share-btn"
+        class:copied={isCopiedLink}
+        onclick={copyRoomLink}
+        title={isCopiedLink ? 'Invite link copied to clipboard!' : 'Copy room invite link'}
+        aria-label="Copy room invite link"
+      >
+        <span class="btn-icon">{isCopiedLink ? '✓' : '🔗'}</span>
+        <span class="btn-text">{isCopiedLink ? 'Copied!' : 'Copy Link'}</span>
+      </button>
 
       <button
         class="control-btn"
@@ -176,10 +291,31 @@
 
   <main class="canvas-viewport" id="globe-container">
     <Globe bind:this={globeComponent} {location} {peers} bind:autoRotate />
-    <NetworkHud roomName={currentRoom} {peers} {capacity} bind:isCollapsed={isHudCollapsed} />
+    <NetworkHud
+      roomName={currentRoom}
+      {peers}
+      {capacity}
+      bind:isCollapsed={isHudCollapsed}
+      onFocusPeer={handleFocusPeer}
+      onOpenRoomModal={() => (isRoomModalOpen = true)}
+    />
   </main>
 
-  <Footer />
+  <Footer onOpenPrivacy={() => (isPrivacyModalOpen = true)} />
+
+  <RoomModal
+    isOpen={isRoomModalOpen}
+    {currentRoom}
+    onClose={() => (isRoomModalOpen = false)}
+    onSelectRoom={handleSelectRoom}
+  />
+
+  <PrivacyModal
+    isOpen={isPrivacyModalOpen}
+    {isGhostMode}
+    onClose={() => (isPrivacyModalOpen = false)}
+    onToggleGhostMode={toggleGhostMode}
+  />
 </div>
 
 <style>
@@ -337,6 +473,22 @@
     }
   }
 
+  .location-badge.ghost {
+    border-color: rgba(168, 85, 247, 0.4);
+    background: rgba(88, 28, 135, 0.25);
+  }
+
+  .location-badge.ghost .you-indicator {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: rgba(168, 85, 247, 0.5);
+    color: #c084fc;
+  }
+
+  .location-dot.ghost-dot {
+    background: #c084fc;
+    box-shadow: 0 0 6px #c084fc;
+  }
+
   .room-pill {
     display: flex;
     align-items: center;
@@ -347,6 +499,49 @@
     border-radius: 9999px;
     font-size: 0.8rem;
     font-family: var(--font-mono);
+    color: inherit;
+  }
+
+  .room-pill.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .room-pill.clickable:hover {
+    border-color: rgba(56, 189, 248, 0.5);
+    background: rgba(15, 23, 42, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
+  }
+
+  .room-edit-pill {
+    font-size: 0.65rem;
+    margin-left: 0.4rem;
+    opacity: 0.6;
+    transition: transform 0.2s;
+  }
+
+  .room-pill.clickable:hover .room-edit-pill {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+
+  .share-btn {
+    border-color: rgba(56, 189, 248, 0.25);
+    color: #38bdf8;
+  }
+
+  .share-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+  }
+
+  .share-btn.copied {
+    border-color: rgba(34, 197, 94, 0.6);
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.15);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.25);
   }
 
   .room-prefix {

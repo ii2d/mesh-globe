@@ -8,9 +8,18 @@
     peers: RemotePeer[];
     capacity?: CapacityStatus;
     isCollapsed?: boolean;
+    onFocusPeer?: (peer: RemotePeer) => void;
+    onOpenRoomModal?: () => void;
   }
 
-  let { roomName, peers = [], capacity, isCollapsed = $bindable(false) }: Props = $props();
+  let {
+    roomName,
+    peers = [],
+    capacity,
+    isCollapsed = $bindable(false),
+    onFocusPeer,
+    onOpenRoomModal,
+  }: Props = $props();
 
   const summary = $derived(summarizeMeshNetwork(peers));
 
@@ -24,7 +33,15 @@
     <div class="header-left">
       <span class="hud-status-dot" class:active={peers.length > 0}></span>
       <h2 class="hud-title">Mesh Telemetry</h2>
-      <span class="hud-room">#{roomName}</span>
+      <button
+        class="hud-room-btn"
+        onclick={onOpenRoomModal}
+        title="Manage or switch mesh room"
+        aria-label="Manage mesh room #{roomName}"
+      >
+        <span class="hud-room">#{roomName}</span>
+        <span class="room-edit-icon">✏️</span>
+      </button>
     </div>
 
     <div class="header-right">
@@ -88,20 +105,36 @@
       <div class="peer-list-section">
         <div class="section-title">
           <span>Connected Nodes ({peers.length})</span>
+          {#if peers.length > 0}
+            <span class="click-hint">Click node to focus 📍</span>
+          {/if}
         </div>
 
         {#if peers.length === 0}
           <div class="empty-peers">
             <span class="scanning-ring"></span>
             <p class="empty-text">Scanning Nostr relays...</p>
-            <span class="empty-sub">Share room link or wait for peers to join</span>
+            <button class="invite-btn" onclick={onOpenRoomModal}>
+              <span>🔗</span> Share Room Invite
+            </button>
           </div>
         {:else}
           <div class="peer-scroll">
             {#each peers as peer (peer.id)}
               {@const badge = formatLatencyBadge(peer.emaRtt, peer.rtt)}
               {@const flag = getCountryFlagEmoji(peer.metadata?.countryCode)}
-              <div class="peer-row">
+              <div
+                class="peer-row clickable"
+                onclick={() => onFocusPeer?.(peer)}
+                title="Click to focus on this peer on the 3D globe"
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    onFocusPeer?.(peer);
+                  }
+                }}
+              >
                 <div class="peer-info">
                   <span class="peer-flag" role="img" aria-label="Country flag">{flag}</span>
                   <div class="peer-names">
@@ -207,13 +240,47 @@
     color: #f1f5f9;
   }
 
+  .hud-room-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: opacity 0.2s;
+  }
+
+  .hud-room-btn:hover {
+    opacity: 0.85;
+  }
+
   .hud-room {
     font-size: 0.75rem;
     font-family: var(--font-mono);
     color: #38bdf8;
     background: rgba(56, 189, 248, 0.1);
+    border: 1px solid transparent;
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .hud-room-btn:hover .hud-room {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.4);
+  }
+
+  .room-edit-icon {
+    font-size: 0.65rem;
+    opacity: 0.6;
+    transition: transform 0.2s;
+  }
+
+  .hud-room-btn:hover .room-edit-icon {
+    transform: scale(1.15);
+    opacity: 1;
   }
 
   .hud-toggle-btn {
@@ -337,11 +404,22 @@
   }
 
   .section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-size: 0.7rem;
     font-weight: 600;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  .click-hint {
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: #38bdf8;
+    text-transform: none;
+    letter-spacing: normal;
   }
 
   .peer-scroll {
@@ -371,6 +449,22 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 6px;
     gap: 0.5rem;
+    transition: all 0.2s ease;
+  }
+
+  .peer-row.clickable {
+    cursor: pointer;
+  }
+
+  .peer-row.clickable:hover {
+    background: rgba(56, 189, 248, 0.08);
+    border-color: rgba(56, 189, 248, 0.25);
+    transform: translateX(2px);
+  }
+
+  .peer-row.clickable:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 1px;
   }
 
   .peer-info {
@@ -456,9 +550,27 @@
     font-weight: 500;
   }
 
-  .empty-sub {
-    font-size: 0.65rem;
-    color: #64748b;
+  .invite-btn {
+    margin-top: 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 6px;
+    color: #38bdf8;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .invite-btn:hover {
+    background: rgba(56, 189, 248, 0.22);
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+    transform: translateY(-1px);
   }
 
   @keyframes spin {

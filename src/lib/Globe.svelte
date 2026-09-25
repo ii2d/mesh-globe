@@ -68,6 +68,14 @@
     }
   }
 
+  export function focusOnCoordinates(lat: number, lng: number) {
+    if (globeInstance) {
+      const currentPov = globeInstance.pointOfView();
+      const altitude = currentPov?.altitude ?? 2.2;
+      globeInstance.pointOfView({ lat, lng, altitude }, 1200);
+    }
+  }
+
   function updateGlobeData() {
     if (!globeInstance) return;
 

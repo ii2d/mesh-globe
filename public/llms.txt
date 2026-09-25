@@ -1,0 +1,48 @@
+# mesh-globe
+
+> Real-time browser-based 3D Earth globe visualizing decentralized peer-to-peer WebRTC mesh network connectivity, geographic distribution, and live millisecond latency using Nostr relay signaling.
+
+Website: https://mesh-globe.ii2d.com
+Repository: https://github.com/ii2d/mesh-globe
+License: MIT
+Author: ii2d
+
+## Overview
+
+mesh-globe is a zero-configuration, serverless single-page web application. When a user opens the application in any modern WebRTC-compatible browser, they join a decentralized mesh network. The application plots the user's approximate geographic location onto an interactive 3D WebGL Earth globe, renders animated connection arcs to all active peers, continuously measures round-trip latency via WebRTC data channel heartbeats, and color-codes connection quality alongside an interactive network HUD.
+
+## Key Capabilities
+
+- **Serverless Decentralized Mesh**: Direct browser-to-browser WebRTC DataChannel mesh connections without centralized matchmaking, backend servers, or accounts.
+- **Nostr Relay Signaling**: Uses Trystero's Nostr backend over public decentralized Nostr relays to exchange WebRTC offer/answer handshakes and ICE candidates.
+- **3D Interactive WebGL Globe**: Built with `globe.gl` and Three.js. Supports drag-to-rotate, pinch/scroll zoom, auto-rotation toggle, country borders toggle, and multiple themes (Night, Dark Minimal, Blue Marble, Wireframe).
+- **Live Latency Telemetry**: Sends periodic ping packets (`performance.now()`) every 2.5s over WebRTC data channels, calculates round-trip time (RTT), and applies Exponential Moving Average (EMA) smoothing to prevent visual jitter.
+- **Color-Coded Latency Tiers**:
+  - Optimal (< 100 ms): Neon Green (`#22c55e`)
+  - Acceptable (100–250 ms): Amber (`#eab308`)
+  - Degraded (> 250 ms): Red (`#ef4444`)
+- **Privacy & Anonymity Controls**:
+  - IP-based coarse city-level coordinates with bounded random jitter (~5–10 km).
+  - Ghost Mode: masks user location to random oceanic/off-grid coordinates while keeping full mesh connectivity.
+  - Zero persistent telemetry or database storage.
+- **Dynamic Mesh Rooms**: Append `#room-name` to the URL (e.g. `https://mesh-globe.ii2d.com/#my-team`) to partition into isolated mesh topologies. Defaults to `#global`.
+- **Soft Connection Limits**: Enforces a 25 direct peer threshold to preserve smooth 60fps rendering and prevent browser CPU overload.
+
+## Architecture & Protocols
+
+- **Ping Payload**: `{"type": "ping", "id": "<uuid>", "t": <timestamp>}`
+- **Pong Payload**: `{"type": "pong", "id": "<uuid>", "t": <timestamp>}`
+- **Metadata Broadcast**: `{"type": "meta", "lat": <number>, "lng": <number>, "country": "<string>", "city": "<string>"}`
+- **Signaling Relays**: Public Nostr relay infrastructure (e.g., `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.snort.social`).
+
+## Tech Stack
+
+- Svelte 5 (with Runes and TypeScript)
+- Vite build tooling & Vitest testing
+- `globe.gl` (Three.js WebGL rendering)
+- Trystero (`trystero/nostr`)
+
+## See Also
+
+- Full specification and documentation: https://mesh-globe.ii2d.com/llms-full.txt
+- Sitemap: https://mesh-globe.ii2d.com/sitemap.xml

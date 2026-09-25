@@ -3,20 +3,295 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>mesh-globe | P2P Network Mesh Visualization</title>
+    <title>mesh-globe | Real-Time Decentralized P2P WebRTC Mesh Visualization</title>
+
+    <!-- Canonical & Alternate Links -->
+    <link rel="canonical" href="https://mesh-globe.ii2d.com/" />
+    <link
+      rel="alternate"
+      type="text/plain"
+      href="https://mesh-globe.ii2d.com/llms.txt"
+      title="LLM Documentation"
+    />
+    <link rel="sitemap" type="application/xml" href="https://mesh-globe.ii2d.com/sitemap.xml" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Search Engine & Discovery Metadata -->
     <meta
       name="description"
-      content="Real-time browser-based 3D globe visualizing peer-to-peer WebRTC mesh network connectivity, geographic distribution, and latency."
+      content="Real-time, serverless 3D Earth globe visualizing decentralized peer-to-peer WebRTC mesh network connectivity, geographic distribution, and live millisecond latency using Nostr relay signaling."
     />
+    <meta
+      name="keywords"
+      content="WebRTC, P2P mesh network, Nostr relays, decentralized networking, 3D globe visualization, globe.gl, real-time latency, peer-to-peer WebRTC, Three.js, Svelte 5, network topology, RTT telemetry, serverless, ghost mode, privacy-focused networking"
+    />
+    <meta name="author" content="ii2d" />
+    <meta name="theme-color" content="#050811" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+
+    <!-- Open Graph (Facebook, LinkedIn, Discord, Slack, AI preview crawlers) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="mesh-globe" />
+    <meta
+      property="og:title"
+      content="mesh-globe | Real-Time Decentralized P2P WebRTC Mesh Visualization"
+    />
+    <meta
+      property="og:description"
+      content="Interactive 3D Earth globe visualizing decentralized WebRTC peer-to-peer mesh connectivity, latency, and geographic distribution over Nostr relays."
+    />
+    <meta property="og:url" content="https://mesh-globe.ii2d.com/" />
+    <meta property="og:image" content="https://mesh-globe.ii2d.com/og-image.png" />
+    <meta property="og:image:secure_url" content="https://mesh-globe.ii2d.com/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="3D interactive Earth globe displaying peer-to-peer WebRTC mesh connections and latency arcs"
+    />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter / X Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="mesh-globe | Real-Time Decentralized P2P WebRTC Mesh Visualization"
+    />
+    <meta
+      name="twitter:description"
+      content="Interactive 3D Earth globe visualizing decentralized WebRTC peer-to-peer mesh connectivity, latency, and geographic distribution over Nostr relays."
+    />
+    <meta name="twitter:image" content="https://mesh-globe.ii2d.com/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="3D interactive Earth globe displaying peer-to-peer WebRTC mesh connections and latency arcs"
+    />
+
+    <!-- Web Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Structured Data (JSON-LD) for Search Engines & AI Agents -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "@id": "https://mesh-globe.ii2d.com/#webapp",
+            "name": "mesh-globe",
+            "url": "https://mesh-globe.ii2d.com/",
+            "applicationCategory": "NetworkingApplication",
+            "operatingSystem": "All modern browsers with WebRTC and WebGL support",
+            "browserRequirements": "Requires WebGL and WebRTC support",
+            "description": "Serverless browser-based 3D Earth globe visualizing decentralized WebRTC peer-to-peer mesh connectivity, latency, and geographic distribution using Trystero over Nostr relays.",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "ii2d",
+              "url": "https://github.com/ii2d"
+            },
+            "image": "https://mesh-globe.ii2d.com/og-image.png",
+            "featureList": [
+              "Zero-configuration browser-to-browser WebRTC mesh networking",
+              "Decentralized signaling using public Nostr relays",
+              "Interactive 3D WebGL Earth globe rendered with globe.gl and Three.js",
+              "Continuous round-trip latency measurement with Exponential Moving Average (EMA) smoothing",
+              "Color-coded latency tiers: Optimal (<100ms), Acceptable (100-250ms), Degraded (>250ms)",
+              "Private group mesh rooms via URL hash (#room-name)",
+              "Privacy protection with city-level coordinate coarsening, random jitter, and Ghost Mode",
+              "Soft limit of 25 active connections to prevent hardware overload"
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://mesh-globe.ii2d.com/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is mesh-globe?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "mesh-globe is an open-source, serverless browser application that visualizes real-time WebRTC peer-to-peer mesh network connectivity, geographic distribution, and live millisecond latency on an interactive 3D Earth globe."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does peer discovery work without centralized servers?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "mesh-globe uses Trystero's Nostr backend to perform WebRTC signaling over public decentralized Nostr relays. Once peers exchange SDP offers and answers via Nostr, direct WebRTC Data Channels are established directly between browsers."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does mesh-globe protect user privacy?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Geolocation is resolved client-side via IP lookup, coarsened to city-level centroids, and offset with random coordinate jitter (~5-10 km). Users can also toggle Ghost Mode to anonymize their location entirely. No user data or IP addresses are persisted on any server."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How do I create or join a private mesh room?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Simply append a hashtag and room name to the URL, such as https://mesh-globe.ii2d.com/#my-team. Only participants sharing the exact room name will discover and connect to each other."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <div id="app"></div>
+    <!-- 
+      Pre-rendered semantic fallback for search engines, web crawlers, and AI scrapers.
+      Replaced automatically by Svelte when JavaScript executes.
+    -->
+    <div id="app">
+      <header
+        style="padding: 1.5rem; background: #050811; color: #f8fafc; font-family: Inter, sans-serif"
+      >
+        <h1 style="margin: 0 0 0.5rem 0; font-size: 1.75rem; color: #38bdf8">
+          mesh-globe — Decentralized P2P WebRTC Mesh Visualization
+        </h1>
+        <p style="margin: 0; font-size: 1rem; color: #94a3b8">
+          A lightweight, serverless browser-based 3D Earth globe visualizing real-time decentralized
+          WebRTC peer-to-peer mesh connectivity, latency, and geographic distribution using Trystero
+          over Nostr relays.
+        </p>
+      </header>
+
+      <main
+        style="
+          max-width: 900px;
+          margin: 1.5rem auto;
+          padding: 0 1.5rem;
+          font-family: Inter, sans-serif;
+          color: #cbd5e1;
+          line-height: 1.6;
+        "
+      >
+        <section aria-labelledby="features-heading" style="margin-bottom: 2rem">
+          <h2
+            id="features-heading"
+            style="color: #f1f5f9; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem"
+          >
+            Core Features
+          </h2>
+          <ul>
+            <li>
+              <strong>Serverless Decentralization</strong>: Direct browser-to-browser WebRTC
+              DataChannel mesh connections without central coordination servers or user
+              registration.
+            </li>
+            <li>
+              <strong>Nostr Relay Signaling</strong>: Resilient peer discovery and ICE candidate
+              exchange conducted across public Nostr relay infrastructure.
+            </li>
+            <li>
+              <strong>3D Earth Globe Visualization</strong>: Real-time interactive globe powered by
+              WebGL, Three.js, and globe.gl with configurable styles (Night, Dark Minimal, Blue
+              Marble, Wireframe).
+            </li>
+            <li>
+              <strong>Real-Time Latency Telemetry</strong>: Continuous round-trip time (RTT)
+              heartbeats every 2.5s with Exponential Moving Average (EMA) smoothing.
+            </li>
+            <li>
+              <strong>Color-Coded Latency Indicators</strong>: Green (&lt;100ms) for optimal
+              connectivity, amber (100–250ms) for acceptable, and red (&gt;250ms) for degraded
+              latency.
+            </li>
+            <li>
+              <strong>URL Hash Mesh Rooms</strong>: Isolate connectivity to specific groups by
+              appending a room name to the URL (e.g. <code>#team-sync</code>). Defaults to
+              <code>#global</code>.
+            </li>
+            <li>
+              <strong>Client-Side Privacy</strong>: City-level coarsened coordinates with bounded
+              random jitter (~5–10 km) and an instant Ghost Mode toggle.
+            </li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="faq-heading" style="margin-bottom: 2rem">
+          <h2
+            id="faq-heading"
+            style="color: #f1f5f9; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem"
+          >
+            Frequently Asked Questions
+          </h2>
+          <article style="margin-bottom: 1rem">
+            <h3 style="color: #38bdf8; margin-bottom: 0.25rem">How do I join a private group?</h3>
+            <p>
+              Append a hash identifier to the URL (such as
+              <code>https://mesh-globe.ii2d.com/#my-room</code>) and share it with your peers to
+              create a dedicated mesh network.
+            </p>
+          </article>
+          <article style="margin-bottom: 1rem">
+            <h3 style="color: #38bdf8; margin-bottom: 0.25rem">
+              Is my exact physical location shared?
+            </h3>
+            <p>
+              No. Geolocation is coarsened to city-level centroids and offset with random jitter.
+              Enabling Ghost Mode hides your location entirely.
+            </p>
+          </article>
+        </section>
+
+        <section aria-labelledby="tech-heading" style="margin-bottom: 2rem">
+          <h2
+            id="tech-heading"
+            style="color: #f1f5f9; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem"
+          >
+            Technology Stack
+          </h2>
+          <p>
+            Built with Svelte 5 (Runes), TypeScript, globe.gl (Three.js), Trystero (Nostr backend),
+            and Vite.
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <!-- Fallback for JavaScript-disabled environments -->
+    <noscript>
+      <div
+        style="
+          background: #0f172a;
+          color: #f8fafc;
+          padding: 1.5rem;
+          text-align: center;
+          font-family: Inter, sans-serif;
+          border-bottom: 2px solid #ef4444;
+        "
+      >
+        <h2 style="margin: 0 0 0.5rem 0; color: #ef4444">
+          JavaScript is required to run the interactive 3D WebGL mesh-globe.
+        </h2>
+        <p style="margin: 0; color: #94a3b8">
+          Please enable JavaScript in your browser settings to participate in the real-time P2P
+          WebRTC network.
+        </p>
+      </div>
+    </noscript>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

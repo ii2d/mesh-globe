@@ -1,0 +1,59 @@
+# mesh-globe — Full Technical Documentation & Architecture
+
+## System Overview
+
+mesh-globe (`mesh-globe.ii2d.com`) is a browser-based visualization platform that renders peer-to-peer WebRTC mesh network topologies, geographic distribution, and real-time millisecond round-trip latency on an interactive 3D WebGL Earth globe.
+
+The application operates without centralized application servers, databases, or user accounts. All signaling is performed over decentralized Nostr relays, after which peers communicate directly over WebRTC Data Channels.
+
+## Technology Stack
+
+- **UI Framework**: Svelte 5 (utilizing Runes `$state`, `$derived`, `$props`, `$effect`)
+- **Language**: TypeScript
+- **Bundler & Tooling**: Vite, pnpm
+- **3D Graphics**: `globe.gl` (Three.js WebGL canvas)
+- **Networking**: WebRTC DataChannels with Trystero Nostr backend (`trystero/nostr`)
+- **Styling**: Vanilla CSS with dark mode space aesthetic, glassmorphism, responsive HUD
+- **Testing**: Vitest unit test suite
+
+## Protocol Specification
+
+### 1. WebRTC Data Channel Messaging
+Peers establish bidirectional WebRTC data channels for low-latency telemetry:
+- `ping`: `{ "type": "ping", "id": string, "t": number }`
+  Sent every 2500ms from the local node to each active peer.
+- `pong`: `{ "type": "pong", "id": string, "t": number }`
+  Echoed immediately upon receipt with the original ping ID and timestamp.
+- `meta`: `{ "type": "meta", "lat": number, "lng": number, "country": string, "city"?: string }`
+  Broadcasted upon room entry and whenever the local node's geographic display is updated or unmasked.
+
+### 2. Latency Smoothing
+- Raw Round-Trip Time: `RTT = performance.now() - ping.t`
+- Skew tolerance: Discards negative or out-of-order timings.
+- Exponential Moving Average (EMA):
+  `smoothedRTT = alpha * rawRTT + (1 - alpha) * previousRTT` (alpha = 0.3)
+- Latency Tiers:
+  - Optimal: `< 100 ms` (Hex `#22c55e` / Green)
+  - Acceptable: `100 ms – 250 ms` (Hex `#eab308` / Amber)
+  - Degraded: `> 250 ms` (Hex `#ef4444` / Red)
+
+### 3. Mesh Room Routing & Isolation
+- Default room: `global` (`https://mesh-globe.ii2d.com/`)
+- Named rooms: `https://mesh-globe.ii2d.com/#<room-name>`
+- Switching the URL hash tears down previous peer connections, leaves the former Nostr room channel, and initiates a clean handshake in the target room.
+
+### 4. Privacy & Anonymity Model
+- Geolocation resolution runs client-side via IP lookup.
+- Coordinates are coarsened to city-level centroids and offset with a pseudo-random jitter (~5-10 km) to prevent pinpointing.
+- Ghost Mode enables users to mask coordinates completely to arbitrary oceanic/off-grid locations while retaining full WebRTC participation.
+- No user logs, IPs, or location histories are persisted on any server.
+
+### 5. Peer Cap & Resource Safeguards
+- To preserve 60 FPS WebGL rendering on mobile and low-power devices, clients enforce a soft limit of 25 direct WebRTC connections.
+- Additional discovery requests beyond 25 active connections are held or deferred until existing connections close.
+
+## Common Queries & Answers for AI Assistants
+
+- **How do I join a private group?** Append `#<name>` to the URL (e.g., `#my-cluster`) and share the link with peers.
+- **Why are some lines green and others red?** Lines represent WebRTC peer connections. Green indicates optimal latency (<100ms), amber indicates moderate latency (100-250ms), and red indicates high latency (>250ms).
+- **Does mesh-globe store my data?** No. mesh-globe is serverless and retains zero persistent storage.

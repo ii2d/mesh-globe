@@ -19,6 +19,11 @@
 
   let meshHandler: MeshRoomHandler | null = null;
   let routerDestroy: (() => void) | null = null;
+  let globeComponent = $state<{ focusOnUser: () => void } | null>(null);
+
+  function focusLocalNode() {
+    globeComponent?.focusOnUser();
+  }
 
   function joinCurrentRoom(roomId: string) {
     if (meshHandler) {
@@ -101,12 +106,21 @@
 
     <div class="header-controls">
       {#if location}
-        <div class="location-badge" title="Coarsened city-level coordinates with privacy jitter">
+        <button
+          type="button"
+          class="location-badge clickable"
+          onclick={focusLocalNode}
+          title="Click to focus on your node on the globe"
+        >
+          <span class="you-indicator">YOU</span>
           <span class="location-dot"></span>
           <span class="location-text">
             {location.city ? `${location.city}, ` : ''}{location.country || 'Local Node'}
+            <span class="location-coords"
+              >({location.lat.toFixed(2)}°, {location.lng.toFixed(2)}°)</span
+            >
           </span>
-        </div>
+        </button>
       {:else if isLoadingLocation}
         <div class="location-badge loading">
           <span class="loading-spinner"></span>
@@ -161,7 +175,7 @@
   {/if}
 
   <main class="canvas-viewport" id="globe-container">
-    <Globe {location} {peers} bind:autoRotate />
+    <Globe bind:this={globeComponent} {location} {peers} bind:autoRotate />
     <NetworkHud roomName={currentRoom} {peers} {capacity} bind:isCollapsed={isHudCollapsed} />
   </main>
 
@@ -267,6 +281,37 @@
     border-radius: 9999px;
     font-size: 0.75rem;
     color: #e2e8f0;
+    font-family: inherit;
+  }
+
+  .location-badge.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .location-badge.clickable:hover {
+    border-color: rgba(56, 189, 248, 0.5);
+    background: rgba(15, 23, 42, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+  }
+
+  .you-indicator {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    background: rgba(56, 189, 248, 0.2);
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+    padding: 0.1rem 0.35rem;
+    border-radius: 9999px;
+  }
+
+  .location-coords {
+    color: #94a3b8;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    margin-left: 0.25rem;
   }
 
   .location-dot {

@@ -126,6 +126,10 @@ export function createMeshRoom(
 
     // Send our metadata specifically to the newly joined peer
     sendLocalMetadata(peerId);
+    // WebRTC data channel may take a moment to transition to open; retry after a brief delay
+    setTimeout(() => {
+      sendLocalMetadata(peerId);
+    }, 1200);
   };
 
   // Handle peer leave
@@ -141,6 +145,8 @@ export function createMeshRoom(
     if (!parsed) return;
 
     const existing = peerStore.getPeer(context.peerId);
+    const wasMissingMetadata = !existing || !existing.metadata;
+
     if (existing) {
       existing.metadata = parsed;
       options.onPeerUpdate?.(existing);
@@ -157,6 +163,11 @@ export function createMeshRoom(
         options.onPeerJoin?.(newPeer);
         notifyChange();
       }
+    }
+
+    // Bi-directional handshake: only echo back if peer didn't have metadata yet to prevent infinite bounce
+    if (wasMissingMetadata && localLocation) {
+      sendLocalMetadata(context.peerId);
     }
   };
 
@@ -205,6 +216,11 @@ export function createMeshRoom(
         t: now,
       };
       pingAction.send(ping as never, { target: peer.id }).catch(() => {});
+
+      // If this peer is missing coordinates, re-send our metadata to prompt an exchange
+      if (!peer.metadata && localLocation) {
+        sendLocalMetadata(peer.id);
+      }
     }
   }, 2500);
 
@@ -240,6 +256,10 @@ export function createMeshRoom(
     getCapacityStatus: () => peerStore.getCapacityStatus(),
     broadcastMetadata: (loc: GeoLocation) => {
       localLocation = loc;
+      const peers = peerStore.getPeers();
+      for (const p of peers) {
+        sendLocalMetadata(p.id);
+      }
       sendLocalMetadata();
     },
     leave: cleanup,

@@ -585,7 +585,25 @@
       right: 0.75rem;
       width: auto;
       max-width: none;
-      bottom: 2.5rem;
+      bottom: max(2.35rem, calc(env(safe-area-inset-bottom) + 1.85rem));
+      max-height: 48vh;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65);
+    }
+
+    .network-hud.collapsed {
+      right: auto;
+      width: auto;
+      max-width: calc(100vw - 1.5rem);
+    }
+
+    .hud-body {
+      overflow-y: auto;
+      padding: 0.65rem 0.75rem;
+      gap: 0.55rem;
+    }
+
+    .peer-scroll {
+      max-height: 120px;
     }
   }
 </style>

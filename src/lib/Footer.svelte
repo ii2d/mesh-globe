@@ -106,4 +106,20 @@
     border-radius: 4px;
     border: 1px solid rgba(56, 189, 248, 0.2);
   }
+
+  @media (max-width: 640px) {
+    .app-footer {
+      padding: 0.4rem 0.75rem;
+      padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
+      font-size: 0.7rem;
+    }
+
+    .footer-center {
+      display: none;
+    }
+
+    .version-label {
+      display: none;
+    }
+  }
 </style>

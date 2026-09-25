@@ -194,17 +194,17 @@
 
 <div class="shell">
   <header class="header">
-    <div class="brand">
-      <div class="logo-mark">
-        <span class="pulsing-core"></span>
+    <div class="header-main">
+      <div class="brand">
+        <div class="logo-mark">
+          <span class="pulsing-core"></span>
+        </div>
+        <div class="brand-text">
+          <h1 class="title">mesh-globe</h1>
+          <span class="subtitle">Decentralized P2P Mesh</span>
+        </div>
       </div>
-      <div class="brand-text">
-        <h1 class="title">mesh-globe</h1>
-        <span class="subtitle">Decentralized P2P Mesh</span>
-      </div>
-    </div>
 
-    <div class="header-controls">
       {#if location}
         <button
           type="button"
@@ -230,7 +230,9 @@
           <span class="location-text">Locating...</span>
         </div>
       {/if}
+    </div>
 
+    <div class="header-controls">
       <button
         class="room-pill clickable"
         onclick={() => (isRoomModalOpen = true)}
@@ -242,49 +244,51 @@
         <span class="room-edit-pill">✏️</span>
       </button>
 
-      <button
-        class="control-btn share-btn"
-        class:copied={isCopiedLink}
-        onclick={copyRoomLink}
-        title={isCopiedLink ? 'Invite link copied to clipboard!' : 'Copy room invite link'}
-        aria-label="Copy room invite link"
-      >
-        <span class="btn-icon">{isCopiedLink ? '✓' : '🔗'}</span>
-        <span class="btn-text">{isCopiedLink ? 'Copied!' : 'Copy Link'}</span>
-      </button>
+      <div class="control-actions">
+        <button
+          class="control-btn share-btn"
+          class:copied={isCopiedLink}
+          onclick={copyRoomLink}
+          title={isCopiedLink ? 'Invite link copied to clipboard!' : 'Copy room invite link'}
+          aria-label="Copy room invite link"
+        >
+          <span class="btn-icon">{isCopiedLink ? '✓' : '🔗'}</span>
+          <span class="btn-text">{isCopiedLink ? 'Copied!' : 'Copy Link'}</span>
+        </button>
 
-      <button
-        class="control-btn"
-        class:active={isStyleModalOpen}
-        onclick={() => (isStyleModalOpen = true)}
-        title="Change Globe Appearance & Layers"
-        aria-label="Globe Appearance & Layers"
-      >
-        <span class="btn-icon">🎨</span>
-        <span class="btn-text">Style</span>
-      </button>
+        <button
+          class="control-btn"
+          class:active={isStyleModalOpen}
+          onclick={() => (isStyleModalOpen = true)}
+          title="Change Globe Appearance & Layers"
+          aria-label="Globe Appearance & Layers"
+        >
+          <span class="btn-icon">🎨</span>
+          <span class="btn-text">Style</span>
+        </button>
 
-      <button
-        class="control-btn"
-        class:active={!isHudCollapsed}
-        onclick={toggleHud}
-        title="Toggle Network HUD"
-        aria-label="Toggle Network HUD"
-      >
-        <span class="btn-icon">📊</span>
-        <span class="btn-text">HUD</span>
-      </button>
+        <button
+          class="control-btn"
+          class:active={!isHudCollapsed}
+          onclick={toggleHud}
+          title="Toggle Network HUD"
+          aria-label="Toggle Network HUD"
+        >
+          <span class="btn-icon">📊</span>
+          <span class="btn-text">HUD</span>
+        </button>
 
-      <button
-        class="control-btn"
-        class:active={autoRotate}
-        onclick={toggleAutoRotate}
-        title="Toggle Globe Auto-Rotation"
-        aria-label="Toggle Globe Auto-Rotation"
-      >
-        <span class="btn-icon">↻</span>
-        <span class="btn-text">Rotate</span>
-      </button>
+        <button
+          class="control-btn"
+          class:active={autoRotate}
+          onclick={toggleAutoRotate}
+          title="Toggle Globe Auto-Rotation"
+          aria-label="Toggle Globe Auto-Rotation"
+        >
+          <span class="btn-icon">↻</span>
+          <span class="btn-text">Rotate</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -372,10 +376,13 @@
     padding: 1rem 1.5rem;
     z-index: 40;
     pointer-events: none;
+    gap: 0.75rem;
   }
 
-  .brand,
-  .header-controls {
+  .header-main {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
     pointer-events: auto;
   }
 
@@ -383,6 +390,19 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+  }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    pointer-events: auto;
+  }
+
+  .control-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   .logo-mark {
@@ -666,5 +686,87 @@
 
   .dismiss-btn:hover {
     opacity: 1;
+  }
+
+  @media (max-width: 820px) {
+    .header {
+      padding: 0.5rem 0.75rem;
+      padding-top: max(0.5rem, env(safe-area-inset-top));
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.4rem;
+    }
+
+    .header-main {
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .subtitle {
+      display: none;
+    }
+
+    .title {
+      font-size: 0.95rem;
+    }
+
+    .location-coords {
+      display: none;
+    }
+
+    .location-badge {
+      padding: 0.25rem 0.55rem;
+      font-size: 0.7rem;
+      max-width: 170px;
+    }
+
+    .location-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-controls {
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .room-pill {
+      padding: 0.25rem 0.55rem;
+      font-size: 0.72rem;
+      max-width: 120px;
+    }
+
+    .room-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .control-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .control-btn {
+      padding: 0.35rem;
+      min-width: 36px;
+      min-height: 36px;
+      justify-content: center;
+    }
+
+    .control-btn .btn-text {
+      display: none;
+    }
+
+    .control-btn .btn-icon {
+      font-size: 1rem;
+      line-height: 1;
+    }
   }
 </style>

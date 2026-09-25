@@ -127,6 +127,7 @@
     border-radius: 16px;
     width: 100%;
     max-width: 480px;
+    max-height: calc(100dvh - 2rem);
     box-shadow:
       0 20px 50px rgba(0, 0, 0, 0.6),
       0 0 30px rgba(56, 189, 248, 0.1);
@@ -183,6 +184,8 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .section {
@@ -368,6 +371,26 @@
     to {
       opacity: 1;
       transform: scale(1) translateY(0);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .modal-backdrop {
+      padding: 0.5rem;
+      align-items: flex-end;
+    }
+
+    .modal-card {
+      max-height: 85dvh;
+      border-radius: 16px 16px 12px 12px;
+    }
+
+    .modal-header {
+      padding: 0.9rem 1.1rem;
+    }
+
+    .modal-body {
+      padding: 1.1rem;
     }
   }
 </style>

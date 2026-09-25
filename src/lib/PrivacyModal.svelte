@@ -344,4 +344,24 @@
     color: #94a3b8;
     line-height: 1.4;
   }
+
+  @media (max-width: 640px) {
+    .modal-backdrop {
+      padding: 0.5rem;
+      align-items: flex-end;
+    }
+
+    .modal-card {
+      max-height: 85dvh;
+      border-radius: 16px 16px 12px 12px;
+    }
+
+    .modal-header {
+      padding: 0.9rem 1.1rem;
+    }
+
+    .modal-body {
+      padding: 1.1rem;
+    }
+  }
 </style>

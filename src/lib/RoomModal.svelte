@@ -206,6 +206,9 @@
   .modal-card {
     width: 100%;
     max-width: 440px;
+    max-height: calc(100dvh - 2rem);
+    display: flex;
+    flex-direction: column;
     background: rgba(15, 23, 42, 0.92);
     border: 1px solid rgba(56, 189, 248, 0.25);
     border-radius: 16px;
@@ -274,6 +277,8 @@
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .current-room-box {
@@ -468,5 +473,25 @@
 
   .chip-hash {
     opacity: 0.6;
+  }
+
+  @media (max-width: 640px) {
+    .modal-backdrop {
+      padding: 0.5rem;
+      align-items: flex-end;
+    }
+
+    .modal-card {
+      max-height: 85dvh;
+      border-radius: 16px 16px 12px 12px;
+    }
+
+    .modal-header {
+      padding: 0.9rem 1.1rem;
+    }
+
+    .modal-body {
+      padding: 1.1rem;
+    }
   }
 </style>

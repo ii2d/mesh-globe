@@ -3,3 +3,4 @@ dist
 build
 .husky/_
 pnpm-lock.yaml
+public/datasets/**

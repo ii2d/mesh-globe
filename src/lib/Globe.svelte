@@ -4,17 +4,41 @@
   import type { GeoLocation } from './geo';
   import type { RemotePeer } from './mesh';
   import { getLatencyColor, getLatencyTier } from './latency';
+  import { getGlobeStyle, type GlobeStyleId } from './globe-styles';
 
   interface Props {
     location?: GeoLocation | null;
     peers?: RemotePeer[];
     autoRotate?: boolean;
+    globeStyle?: GlobeStyleId;
+    showBorders?: boolean;
   }
 
-  let { location = null, peers = [], autoRotate = $bindable(true) }: Props = $props();
+  let {
+    location = null,
+    peers = [],
+    autoRotate = $bindable(true),
+    globeStyle = 'night',
+    showBorders = true,
+  }: Props = $props();
+
+  interface CountryFeature {
+    type: string;
+    geometry: {
+      type: string;
+      coordinates: unknown[];
+    };
+    properties?: {
+      ADMIN?: string;
+      NAME?: string;
+      ISO_A2?: string;
+    };
+  }
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let globeInstance = $state<GlobeInstance | null>(null);
+  let countriesData = $state<CountryFeature[]>([]);
+  let hoveredCountry = $state<CountryFeature | null>(null);
   let resizeObserver: ResizeObserver | null = null;
 
   interface GlobePoint {
@@ -277,11 +301,35 @@
     }
   });
 
+  $effect(() => {
+    // Reactively update globe theme texture and atmospheric glow
+    if (globeInstance) {
+      const config = getGlobeStyle(globeStyle);
+      globeInstance.globeImageUrl(config.globeImageUrl);
+      globeInstance.bumpImageUrl(config.bumpImageUrl || '');
+      globeInstance.atmosphereColor(config.atmosphereColor);
+      globeInstance.atmosphereAltitude(config.atmosphereAltitude);
+      globeInstance.polygonStrokeColor(() => config.borderStrokeColor);
+      globeInstance.polygonCapColor((d: object) =>
+        d === hoveredCountry ? config.hoverFillColor : 'rgba(0, 0, 0, 0)',
+      );
+    }
+  });
+
+  $effect(() => {
+    // Reactively toggle country border polygons
+    if (globeInstance) {
+      globeInstance.polygonsData(showBorders ? countriesData : []);
+    }
+  });
+
   onMount(() => {
     if (!containerEl) return;
 
     const width = containerEl.clientWidth || window.innerWidth;
     const height = containerEl.clientHeight || window.innerHeight;
+
+    const currentStyleConfig = getGlobeStyle(globeStyle);
 
     globeInstance = new Globe(containerEl, {
       waitForGlobeReady: false,
@@ -290,10 +338,39 @@
       .width(width)
       .height(height)
       .backgroundColor('rgba(5, 8, 17, 0)')
-      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-      .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-      .atmosphereColor('#38bdf8')
-      .atmosphereAltitude(0.18)
+      .globeImageUrl(currentStyleConfig.globeImageUrl)
+      .bumpImageUrl(currentStyleConfig.bumpImageUrl || '')
+      .atmosphereColor(currentStyleConfig.atmosphereColor)
+      .atmosphereAltitude(currentStyleConfig.atmosphereAltitude)
+      // Country Border Polygons
+      .polygonGeoJsonGeometry('geometry')
+      .polygonCapColor((d: object) => {
+        const config = getGlobeStyle(globeStyle);
+        return d === hoveredCountry ? config.hoverFillColor : 'rgba(0, 0, 0, 0)';
+      })
+      .polygonSideColor(() => 'rgba(0, 0, 0, 0)')
+      .polygonStrokeColor(() => {
+        const config = getGlobeStyle(globeStyle);
+        return config.borderStrokeColor;
+      })
+      .polygonAltitude((d: object) => (d === hoveredCountry ? 0.012 : 0.005))
+      .polygonLabel((d: object) => {
+        const feat = d as CountryFeature;
+        const name = feat.properties?.ADMIN || feat.properties?.NAME || 'Country';
+        return `<div class="globe-tooltip">
+          <div class="tooltip-title">🏳️ ${name}</div>
+        </div>`;
+      })
+      .onPolygonHover((hoverD: object | null) => {
+        const feat = hoverD as CountryFeature | null;
+        if (hoveredCountry !== feat) {
+          hoveredCountry = feat;
+          if (globeInstance) {
+            globeInstance.polygonCapColor(globeInstance.polygonCapColor());
+            globeInstance.polygonAltitude(globeInstance.polygonAltitude());
+          }
+        }
+      })
       // Points
       .pointLat('lat')
       .pointLng('lng')
@@ -365,6 +442,17 @@
       }
     });
     resizeObserver.observe(containerEl);
+
+    // Fetch and initialize geopolitical border polygons
+    fetch('/datasets/countries.geojson')
+      .then((res) => res.json())
+      .then((data: { features: CountryFeature[] }) => {
+        countriesData = data.features || [];
+        if (globeInstance && showBorders) {
+          globeInstance.polygonsData(countriesData);
+        }
+      })
+      .catch(() => {});
   });
 
   onDestroy(() => {

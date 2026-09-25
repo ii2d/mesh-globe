@@ -5,6 +5,8 @@
   import Footer from './lib/Footer.svelte';
   import RoomModal from './lib/RoomModal.svelte';
   import PrivacyModal from './lib/PrivacyModal.svelte';
+  import GlobeStyleModal from './lib/GlobeStyleModal.svelte';
+  import type { GlobeStyleId } from './lib/globe-styles';
   import { resolveUserLocation, type GeoLocation } from './lib/geo';
   import { setupHashRouter, parseRoomFromHash } from './lib/router';
   import { createMeshRoom, type MeshRoomHandler, type RemotePeer } from './lib/mesh';
@@ -18,6 +20,9 @@
   let isHudCollapsed = $state(false);
   let isRoomModalOpen = $state(false);
   let isPrivacyModalOpen = $state(false);
+  let isStyleModalOpen = $state(false);
+  let globeStyle = $state<GlobeStyleId>('night');
+  let showBorders = $state(true);
   let isCopiedLink = $state(false);
   let copyTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let currentRoom = $state<string>('global');
@@ -250,6 +255,17 @@
 
       <button
         class="control-btn"
+        class:active={isStyleModalOpen}
+        onclick={() => (isStyleModalOpen = true)}
+        title="Change Globe Appearance & Layers"
+        aria-label="Globe Appearance & Layers"
+      >
+        <span class="btn-icon">🎨</span>
+        <span class="btn-text">Style</span>
+      </button>
+
+      <button
+        class="control-btn"
         class:active={!isHudCollapsed}
         onclick={toggleHud}
         title="Toggle Network HUD"
@@ -290,7 +306,14 @@
   {/if}
 
   <main class="canvas-viewport" id="globe-container">
-    <Globe bind:this={globeComponent} {location} {peers} bind:autoRotate />
+    <Globe
+      bind:this={globeComponent}
+      {location}
+      {peers}
+      bind:autoRotate
+      {globeStyle}
+      {showBorders}
+    />
     <NetworkHud
       roomName={currentRoom}
       {peers}
@@ -315,6 +338,15 @@
     {isGhostMode}
     onClose={() => (isPrivacyModalOpen = false)}
     onToggleGhostMode={toggleGhostMode}
+  />
+
+  <GlobeStyleModal
+    isOpen={isStyleModalOpen}
+    currentStyle={globeStyle}
+    {showBorders}
+    onSelectStyle={(newStyle) => (globeStyle = newStyle)}
+    onToggleBorders={() => (showBorders = !showBorders)}
+    onClose={() => (isStyleModalOpen = false)}
   />
 </div>
 

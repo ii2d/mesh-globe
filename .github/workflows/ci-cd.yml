@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Run weekly security audit every Monday at 04:00 UTC
+    - cron: '0 4 * * 1'
 
 permissions:
   contents: read
@@ -50,6 +54,18 @@ jobs:
 
       - name: Audit dependencies
         run: pnpm audit --prod --registry=https://registry.npmjs.org
+
+      - name: Generate CycloneDX SBOM
+        run: pnpm sbom --sbom-format cyclonedx --sbom-spec-version 1.6 --sbom-type application --out dist/sbom.cdx.json
+
+      - name: Scan CycloneDX SBOM with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'sbom'
+          scan-ref: 'dist/sbom.cdx.json'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
       - name: Run Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2
